@@ -180,47 +180,36 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
   const userProfile = req.userProfile;
 
   try {
-    // 1. Try to find members with the exact ID first (Fast path)
-    let snapshot = await db.collection('users')
-      .where('teamId', '==', teamId)
+    if (!userProfile) return res.status(403).json({ error: 'Profile required' });
+
+    console.log(`[DEBUG] Fetching members for teamId: ${teamId} in org: ${userProfile.organizationId}`);
+
+    // 1. Fetch all users in the organization (Safest way to ensure we don't miss anyone)
+    const snapshot = await db.collection('users')
+      .where('organizationId', '==', userProfile.organizationId)
       .get();
-    
-    // 2. If no members found, the ID might have a casing typo (e.g., I vs l)
-    if (snapshot.empty && userProfile) {
-      console.log(`No members found for exact ID ${teamId}. Searching org teams for casing match...`);
-      
-      const allTeamsSnapshot = await db.collection('teams')
-        .where('organizationId', '==', userProfile.organizationId)
-        .get();
-      
-      let realId = teamId;
-      allTeamsSnapshot.forEach(doc => {
-        if (doc.id.toLowerCase() === teamId.toLowerCase()) {
-          realId = doc.id; // Found the real ID with correct casing
-        }
-      });
-      
-      if (realId !== teamId) {
-        console.log(`Correcting teamId from ${teamId} to ${realId}`);
-        snapshot = await db.collection('users')
-          .where('teamId', '==', realId)
-          .get();
-      }
-    }
       
     const members = [];
+    const normalizedTargetId = teamId.toLowerCase().trim();
+
     snapshot.forEach(doc => {
       const data = doc.data();
-      members.push({ 
-        id: doc.id, 
-        email: data.email, 
-        globalRole: data.globalRole,
-        status: data.status 
-      });
+      const userTeamId = (data.teamId || '').toString().toLowerCase().trim();
+
+      if (userTeamId === normalizedTargetId) {
+        members.push({ 
+          id: doc.id, 
+          email: data.email, 
+          globalRole: data.globalRole,
+          status: data.status 
+        });
+      }
     });
     
+    console.log(`[DEBUG] Found ${members.length} members for team ${teamId}`);
     res.json(members);
   } catch (error) {
+    console.error('[ERROR] Team member fetch failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
