@@ -34,17 +34,25 @@ const TeamDetail = () => {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch team details (find in the org teams list for simplicity or add specific endpoint)
+      // 1. Fetch ALL teams in org to find the correct one (handling casing typos in URL)
       const teamsRes = await axios.get(`${API_BASE}/teams/${userProfile.organizationId}`, { headers });
-      const currentTeam = teamsRes.data.find(t => t.id === id);
+      const currentTeam = teamsRes.data.find(t => t.id.toLowerCase() === id.toLowerCase());
+      
+      if (!currentTeam) {
+        setTeam(null);
+        return;
+      }
+
       setTeam(currentTeam);
+      const realId = currentTeam.id; // Correct casing from DB
 
-      // Fetch team tasks
-      const taskRes = await axios.get(`${API_BASE}/tasks/team/${id}`, { headers });
+      // 2. Fetch Tasks and Members using the REAL ID
+      const [taskRes, membersRes] = await Promise.all([
+        axios.get(`${API_BASE}/tasks/team/${realId}`, { headers }),
+        axios.get(`${API_BASE}/users/team/${realId}`, { headers })
+      ]);
+
       setTasks(taskRes.data);
-
-      // Fetch team members for assignment
-      const membersRes = await axios.get(`${API_BASE}/users/team/${id}`, { headers });
       setTeamMembers(membersRes.data);
     } catch (err) {
       console.error('Error fetching team data:', err);
