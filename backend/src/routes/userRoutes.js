@@ -79,10 +79,10 @@ router.get('/pending', authMiddleware, async (req, res) => {
       .where('organizationId', '==', userProfile.organizationId);
 
     if (userProfile.globalRole === 'superadmin') {
-      // SuperAdmin approves Team Admins
-      query = query.where('globalRole', '==', 'teamadmin');
+      // SuperAdmin can see ALL pending users in their org
+      // (Both Team Admins and Members)
     } else if (userProfile.globalRole === 'teamadmin') {
-      // TeamAdmin approves Members for their team
+      // TeamAdmin approves Members for their specific team
       query = query.where('globalRole', '==', 'member')
                    .where('teamId', '==', userProfile.teamId);
     }
@@ -118,12 +118,15 @@ router.patch('/:uid/approve', authMiddleware, async (req, res) => {
        return res.status(403).json({ error: 'Cross-organization approval forbidden' });
     }
 
-    if (userProfile.globalRole === 'teamadmin' && targetUser.globalRole !== 'member') {
-      return res.status(403).json({ error: 'Team Admins can only approve members' });
+    if (userProfile.globalRole === 'teamadmin') {
+      if (targetUser.globalRole !== 'member') {
+        return res.status(403).json({ error: 'Team Admins can only approve members' });
+      }
+      if (targetUser.teamId !== userProfile.teamId) {
+        return res.status(403).json({ error: 'Cannot approve members for other teams' });
+      }
     }
-    if (userProfile.globalRole === 'teamadmin' && targetUser.teamId !== userProfile.teamId) {
-      return res.status(403).json({ error: 'Cannot approve members for other teams' });
-    }
+    // SuperAdmin can approve anyone in their org, so no extra check needed here after the orgId check above
 
     await db.collection('users').doc(uid).update({ status: 'approved' });
     res.json({ message: 'User approved' });
