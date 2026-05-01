@@ -175,13 +175,39 @@ router.delete('/:uid/reject', authMiddleware, async (req, res) => {
   }
 });
 
-// Get team members
 router.get('/team/:teamId', authMiddleware, async (req, res) => {
-  const { teamId } = req.params;
+  let { teamId } = req.params;
+  const userProfile = req.userProfile;
+
   try {
-    const snapshot = await db.collection('users')
+    // 1. Try to find members with the exact ID first (Fast path)
+    let snapshot = await db.collection('users')
       .where('teamId', '==', teamId)
       .get();
+    
+    // 2. If no members found, the ID might have a casing typo (e.g., I vs l)
+    if (snapshot.empty && userProfile) {
+      console.log(`No members found for exact ID ${teamId}. Searching org teams for casing match...`);
+      
+      const allTeamsSnapshot = await db.collection('teams')
+        .where('organizationId', '==', userProfile.organizationId)
+        .get();
+      
+      let realId = teamId;
+      allTeamsSnapshot.forEach(doc => {
+        if (doc.id.toLowerCase() === teamId.toLowerCase()) {
+          realId = doc.id; // Found the real ID with correct casing
+        }
+      });
+      
+      if (realId !== teamId) {
+        console.log(`Correcting teamId from ${teamId} to ${realId}`);
+        snapshot = await db.collection('users')
+          .where('teamId', '==', realId)
+          .get();
+      }
+    }
+      
     const members = [];
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -192,6 +218,7 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
         status: data.status 
       });
     });
+    
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: error.message });
