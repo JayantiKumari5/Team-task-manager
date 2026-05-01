@@ -6,7 +6,7 @@ import { UserPlus, Building2, Users2 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = 'http://localhost:5001/api';
+import { API_BASE } from '../config';
 
 const Signup = () => {
   const [mode, setMode] = useState('create'); // 'create' or 'join'

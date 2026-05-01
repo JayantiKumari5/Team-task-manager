@@ -4,7 +4,7 @@ import { Layout, Plus, Folder, LogOut, CheckCircle2, Clock, AlertCircle, ListTod
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE = 'http://localhost:5001/api';
+import { API_BASE } from '../config';
 
 const Dashboard = () => {
   const { user, logout, userProfile, refreshProfile } = useAuth();

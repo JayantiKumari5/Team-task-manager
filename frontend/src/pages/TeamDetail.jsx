@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Plus, Users, ArrowLeft, CheckCircle2, Clock, ListTodo, Trash2, Calendar } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:5001/api';
+import { API_BASE } from '../config';
 
 const TeamDetail = () => {
   const { id } = useParams();

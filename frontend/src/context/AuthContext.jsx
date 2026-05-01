@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import axios from 'axios';
+import { API_BASE } from '../config';
 
 const AuthContext = createContext();
 
@@ -18,7 +19,7 @@ export const AuthProvider = ({ children }) => {
         setUser(firebaseUser);
         try {
           const token = await firebaseUser.getIdToken();
-          const res = await axios.get('http://localhost:5001/api/users/me', {
+          const res = await axios.get(`${API_BASE}/users/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           setUserProfile(res.data);
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       try {
         const token = await user.getIdToken();
-        const res = await axios.get('http://localhost:5001/api/users/me', {
+        const res = await axios.get(`${API_BASE}/users/me`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUserProfile(res.data);
