@@ -152,7 +152,9 @@ const TeamDetail = () => {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '12px' }}>
              <Users size={18} color="var(--text-muted)" />
-             <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{teamMembers.length} Members</span>
+             <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+               {teamMembers.filter(m => m.status === 'approved').length} / {teamMembers.length} Members
+             </span>
           </div>
           {canManage && (
             <button className="btn btn-primary" onClick={() => setShowTaskModal(true)}>
@@ -221,7 +223,9 @@ const TeamDetail = () => {
                         >
                           <option value="">Unassigned</option>
                           {teamMembers.map(m => (
-                            <option key={m.id} value={m.id}>{m.email.split('@')[0]}</option>
+                            <option key={m.id} value={m.id}>
+                              {m.email.split('@')[0]} {m.status === 'pending' ? '(Pending)' : ''}
+                            </option>
                           ))}
                         </select>
                       ) : (

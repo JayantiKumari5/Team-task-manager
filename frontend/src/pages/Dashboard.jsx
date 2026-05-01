@@ -54,7 +54,7 @@ const Dashboard = () => {
       await axios.patch(`${API_BASE}/users/${uid}/approve`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPendingUsers(pendingUsers.filter(u => u.id !== uid));
+      fetchData(); // Refresh all counts and lists
     } catch (err) {
       console.error('Error approving user:', err);
     }
@@ -67,7 +67,7 @@ const Dashboard = () => {
       await axios.delete(`${API_BASE}/users/${uid}/reject`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPendingUsers(pendingUsers.filter(u => u.id !== uid));
+      fetchData(); // Refresh all counts and lists
     } catch (err) {
       console.error('Error rejecting user:', err);
     }

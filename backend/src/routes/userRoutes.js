@@ -129,7 +129,11 @@ router.patch('/:uid/approve', authMiddleware, async (req, res) => {
     // SuperAdmin can approve anyone in their org, so no extra check needed here after the orgId check above
 
     await db.collection('users').doc(uid).update({ status: 'approved' });
-    res.json({ message: 'User approved' });
+    
+    // Trigger a profile refresh for the affected user if possible? 
+    // (Actually the user will see it on their next page load/poll)
+    
+    res.json({ message: 'User approved successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -177,10 +181,17 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
   try {
     const snapshot = await db.collection('users')
       .where('teamId', '==', teamId)
-      .where('status', '==', 'approved')
       .get();
     const members = [];
-    snapshot.forEach(doc => members.push({ id: doc.id, email: doc.data().email, globalRole: doc.data().globalRole }));
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      members.push({ 
+        id: doc.id, 
+        email: data.email, 
+        globalRole: data.globalRole,
+        status: data.status 
+      });
+    });
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: error.message });
