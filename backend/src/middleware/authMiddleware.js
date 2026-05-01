@@ -18,13 +18,16 @@ const authMiddleware = async (req, res, next) => {
       const userDoc = await db.collection('users').doc(decodedToken.uid).get();
       if (userDoc.exists) {
         req.userProfile = userDoc.data();
-        
-        // Enforce approval status for any routes except user auth/registration routes
-        if (req.userProfile.status === 'pending' && !req.originalUrl.includes('/api/users')) {
-          return res.status(403).json({ error: 'Account pending approval' });
-        }
       } else if (req.user.email === 'admin@admin.com') {
          req.userProfile = { globalRole: 'superadmin', status: 'approved' };
+      } else {
+        // Default safe fallback for new/missing profiles
+        req.userProfile = { globalRole: 'member', status: 'pending' };
+      }
+
+      // Enforce approval status for any routes except user auth/registration routes
+      if (req.userProfile.status === 'pending' && !req.originalUrl.includes('/api/users')) {
+        return res.status(403).json({ error: 'Account pending approval' });
       }
     } catch (dbError) {
       console.error('Error fetching user profile:', dbError);

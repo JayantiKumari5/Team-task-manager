@@ -12,8 +12,10 @@ const checkTeamAccess = (requiredRole) => {
     if (!userProfile) return res.status(403).json({ error: 'User profile not found' });
     if (!teamId) return res.status(400).json({ error: 'Team ID is required' });
 
+    const role = userProfile.globalRole || 'member';
+
     // Superadmins have global access to all teams in their org
-    if (userProfile.globalRole === 'superadmin') {
+    if (role === 'superadmin') {
       const teamDoc = await db.collection('teams').doc(teamId).get();
       if (!teamDoc.exists || teamDoc.data().organizationId !== userProfile.organizationId) {
         return res.status(403).json({ error: 'Team not in your organization' });
@@ -22,10 +24,10 @@ const checkTeamAccess = (requiredRole) => {
     }
 
     if (userProfile.teamId !== teamId) {
-      return res.status(403).json({ error: 'Access denied: You do not belong to this team' });
+      return res.status(403).json({ error: `Access denied: You belong to team ${userProfile.teamId}, not ${teamId}` });
     }
 
-    if (requiredRole === 'teamadmin' && userProfile.globalRole !== 'teamadmin') {
+    if (requiredRole === 'teamadmin' && role !== 'teamadmin') {
       return res.status(403).json({ error: 'Team Admin access required' });
     }
 
