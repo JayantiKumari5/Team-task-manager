@@ -182,21 +182,24 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
   try {
     if (!userProfile) return res.status(403).json({ error: 'Profile required' });
 
-    console.log(`[DEBUG] Fetching members for teamId: ${teamId} in org: ${userProfile.organizationId}`);
+    const targetOrgId = (userProfile.organizationId || '').toString().toLowerCase().trim();
+    const targetTeamId = teamId.toLowerCase().trim();
 
-    // 1. Fetch all users in the organization (Safest way to ensure we don't miss anyone)
-    const snapshot = await db.collection('users')
-      .where('organizationId', '==', userProfile.organizationId)
-      .get();
+    console.log(`[DEBUG] Universal lookup for team: ${targetTeamId} in org: ${targetOrgId}`);
+
+    // Fetch all users - we'll filter manually to be 100% sure we don't miss any data types
+    const snapshot = await db.collection('users').get();
       
     const members = [];
-    const normalizedTargetId = teamId.toLowerCase().trim();
 
     snapshot.forEach(doc => {
       const data = doc.data();
+      
+      // Convert everything to normalized strings for comparison
+      const userOrgId = (data.organizationId || '').toString().toLowerCase().trim();
       const userTeamId = (data.teamId || '').toString().toLowerCase().trim();
 
-      if (userTeamId === normalizedTargetId) {
+      if (userOrgId === targetOrgId && userTeamId === targetTeamId) {
         members.push({ 
           id: doc.id, 
           email: data.email, 
@@ -206,10 +209,10 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
       }
     });
     
-    console.log(`[DEBUG] Found ${members.length} members for team ${teamId}`);
+    console.log(`[DEBUG] Universal search found ${members.length} members`);
     res.json(members);
   } catch (error) {
-    console.error('[ERROR] Team member fetch failed:', error);
+    console.error('[ERROR] Universal lookup failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
