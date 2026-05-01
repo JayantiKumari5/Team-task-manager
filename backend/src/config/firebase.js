@@ -4,16 +4,18 @@ let serviceAccount;
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
+    console.log('--- Initializing Firebase Admin via Environment Variable ---');
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
   } catch (err) {
-    console.error('Error parsing FIREBASE_SERVICE_ACCOUNT env var:', err);
-    process.exit(1);
+    console.error('FAILED to parse FIREBASE_SERVICE_ACCOUNT env var. Falling back to local file...');
+    serviceAccount = require('./serviceAccountKey.json');
   }
 } else {
   try {
+    console.log('--- Initializing Firebase Admin via serviceAccountKey.json ---');
     serviceAccount = require('./serviceAccountKey.json');
   } catch (err) {
-    console.error('FIREBASE_SERVICE_ACCOUNT env var missing and serviceAccountKey.json not found.');
+    console.error('CRITICAL: No Firebase credentials found (env var or JSON file).');
     process.exit(1);
   }
 }

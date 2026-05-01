@@ -182,24 +182,21 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
   try {
     if (!userProfile) return res.status(403).json({ error: 'Profile required' });
 
-    const targetOrgId = (userProfile.organizationId || '').toString().toLowerCase().trim();
     const targetTeamId = teamId.toLowerCase().trim();
 
-    console.log(`[DEBUG] Universal lookup for team: ${targetTeamId} in org: ${targetOrgId}`);
+    console.log(`[DEBUG] Fetching members for team: ${targetTeamId}`);
 
-    // Fetch all users - we'll filter manually to be 100% sure we don't miss any data types
+    // Fetch ALL users to find those requesting this team
+    // This handles cases where the user's organizationId isn't set yet (pending users)
     const snapshot = await db.collection('users').get();
       
     const members = [];
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      
-      // Convert everything to normalized strings for comparison
-      const userOrgId = (data.organizationId || '').toString().toLowerCase().trim();
       const userTeamId = (data.teamId || '').toString().toLowerCase().trim();
 
-      if (userOrgId === targetOrgId && userTeamId === targetTeamId) {
+      if (userTeamId === targetTeamId) {
         members.push({ 
           id: doc.id, 
           email: data.email, 
@@ -209,10 +206,10 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
       }
     });
     
-    console.log(`[DEBUG] Universal search found ${members.length} members`);
+    console.log(`[DEBUG] Found ${members.length} members for team ${teamId}`);
     res.json(members);
   } catch (error) {
-    console.error('[ERROR] Universal lookup failed:', error);
+    console.error('[ERROR] Team member fetch failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
