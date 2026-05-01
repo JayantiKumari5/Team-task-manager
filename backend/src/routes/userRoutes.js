@@ -194,9 +194,15 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
 
     snapshot.forEach(doc => {
       const data = doc.data();
+      
+      // Convert everything to normalized strings for comparison
+      const userOrgId = (data.organizationId || '').toString().toLowerCase().trim();
       const userTeamId = (data.teamId || '').toString().toLowerCase().trim();
+      const role = (data.globalRole || 'member').toLowerCase();
 
-      if (userTeamId === targetTeamId) {
+      // IMPORTANT: Include Team Admins and Super Admins if they are associated with this team
+      // Or if they are the ones requesting to join
+      if (userTeamId === targetTeamId || (role === 'superadmin' && userOrgId === targetOrgId)) {
         members.push({ 
           id: doc.id, 
           email: data.email, 
