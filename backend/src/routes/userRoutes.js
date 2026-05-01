@@ -183,39 +183,44 @@ router.get('/team/:teamId', authMiddleware, async (req, res) => {
     if (!userProfile) return res.status(403).json({ error: 'Profile required' });
 
     const targetTeamId = teamId.toLowerCase().trim();
+    const targetOrgId = (userProfile.organizationId || '').toString().toLowerCase().trim();
+    const adminDomain = (userProfile.email || '').split('@')[1];
 
-    console.log(`[DEBUG] Fetching members for team: ${targetTeamId}`);
+    console.log(`[DEBUG] Self-healing lookup for team: ${targetTeamId} (Domain: ${adminDomain})`);
 
-    // Fetch ALL users to find those requesting this team
-    // This handles cases where the user's organizationId isn't set yet (pending users)
     const snapshot = await db.collection('users').get();
-      
     const members = [];
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      
-      // Convert everything to normalized strings for comparison
-      const userOrgId = (data.organizationId || '').toString().toLowerCase().trim();
       const userTeamId = (data.teamId || '').toString().toLowerCase().trim();
+      const userEmail = (data.email || '');
+      const userDomain = userEmail.split('@')[1];
+      const userOrgId = (data.organizationId || '').toString().toLowerCase().trim();
       const role = (data.globalRole || 'member').toLowerCase();
 
-      // IMPORTANT: Include Team Admins and Super Admins if they are associated with this team
-      // Or if they are the ones requesting to join
-      if (userTeamId === targetTeamId || (role === 'superadmin' && userOrgId === targetOrgId)) {
+      // MATCHING LOGIC:
+      // 1. Same Team ID
+      // 2. OR same Org ID (if available)
+      // 3. OR same email domain (for Admins/Members who might have missing orgId)
+      const isSameTeam = userTeamId === targetTeamId;
+      const isSameOrg = targetOrgId && userOrgId === targetOrgId;
+      const isSameDomain = adminDomain && userDomain === adminDomain;
+
+      if (isSameTeam || isSameOrg || (isSameDomain && (role === 'superadmin' || role === 'teamadmin'))) {
         members.push({ 
           id: doc.id, 
-          email: data.email, 
+          email: userEmail, 
           globalRole: data.globalRole,
           status: data.status 
         });
       }
     });
     
-    console.log(`[DEBUG] Found ${members.length} members for team ${teamId}`);
+    console.log(`[DEBUG] Self-healing found ${members.length} members`);
     res.json(members);
   } catch (error) {
-    console.error('[ERROR] Team member fetch failed:', error);
+    console.error('[ERROR] Self-healing lookup failed:', error);
     res.status(500).json({ error: error.message });
   }
 });

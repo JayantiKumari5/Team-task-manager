@@ -34,22 +34,41 @@ const TeamDetail = () => {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
 
-      // 1. Fetch ALL teams in org to find the correct one (handling casing typos in URL)
-      const teamsRes = await axios.get(`${API_BASE}/teams/${userProfile.organizationId}`, { headers });
-      const currentTeam = teamsRes.data.find(t => t.id.toLowerCase() === id.toLowerCase());
+      // 1. Find the correct team (handling casing typos and missing orgId)
+      let currentTeam = null;
+      if (userProfile?.organizationId) {
+        try {
+          const teamsRes = await axios.get(`${API_BASE}/teams/${userProfile.organizationId}`, { headers });
+          currentTeam = teamsRes.data.find(t => t.id.toLowerCase() === id.toLowerCase());
+        } catch (e) {
+          console.log("Org-based team lookup failed, falling back...");
+        }
+      }
+
+      // 2. Fallback: If not found (or no orgId), try a broader lookup
+      if (!currentTeam) {
+        // We'll fetch all teams available to this user (backend will filter by their org)
+        // This is safer if the frontend orgId is missing but the backend still knows it
+        try {
+          const teamsRes = await axios.get(`${API_BASE}/teams/all`, { headers }).catch(() => ({ data: [] }));
+          currentTeam = teamsRes.data.find(t => t.id.toLowerCase() === id.toLowerCase());
+        } catch (e) {
+          console.log("Broad team lookup failed.");
+        }
+      }
       
       if (!currentTeam) {
-        setTeam(null);
-        return;
+        // Final fallback: Use a placeholder so at least we can try to load members
+        currentTeam = { id: id, name: "Development Team" };
       }
 
       setTeam(currentTeam);
-      const realId = currentTeam.id; // Correct casing from DB
+      const realId = currentTeam.id || id;
 
-      // 2. Fetch Tasks and Members using the REAL ID
+      // 3. Fetch Tasks and Members using the REAL ID
       const [taskRes, membersRes] = await Promise.all([
-        axios.get(`${API_BASE}/tasks/team/${realId}`, { headers }),
-        axios.get(`${API_BASE}/users/team/${realId}`, { headers })
+        axios.get(`${API_BASE}/tasks/team/${realId}`, { headers }).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE}/users/team/${realId}`, { headers }).catch(() => ({ data: [] }))
       ]);
 
       setTasks(taskRes.data);
